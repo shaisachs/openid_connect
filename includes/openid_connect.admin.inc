@@ -43,7 +43,8 @@ function openid_connect_admin_form($form, &$form_state) {
     '#title' => t('User info mapping'),
     '#type' => 'fieldset',
   );
-  if (variable_get('user_pictures')) {
+
+  if (variable_get('user_pictures', FALSE)) {
     $form['userinfo_mapping']['openid_connect_user_pictures'] = array(
       '#title' => t('Fetch user profile picture from login provider'),
       '#description' => t('Whether the user profile picture from the login provider should be fetched and saved locally.'),
@@ -52,30 +53,13 @@ function openid_connect_admin_form($form, &$form_state) {
     );
   }
 
-  $user_entity_wrapper = entity_metadata_wrapper('user');
-  $claims = openid_connect_claims_options();
-  $properties = $user_entity_wrapper->getPropertyInfo();
-  $properties_skip = _openid_connect_user_properties_to_skip();
-  foreach ($properties as $property_name => $property) {
-    if (isset($properties_skip[$property_name])) {
-      continue;
-    }
-    // Always map the timezone.
-    $default_value = 0;
-    if ($property_name == 'timezone') {
-      $default_value = 'zoneinfo';
-    }
-
-    $form['userinfo_mapping']['openid_connect_userinfo_mapping_property_' . $property_name] = array(
-      '#type' => 'select',
-      '#title' => $property['label'],
-      '#description' => $property['description'],
-      '#options' => $claims,
-      '#empty_value' => 0,
-      '#empty_option' => t('- No mapping -'),
-      '#default_value' => variable_get('openid_connect_userinfo_mapping_property_' . $property_name, $default_value),
-    );
-  }
+  /**
+   * For Drupal 6 MVP, do without the user field mapping stuff - this requires
+   * entities which were introduced in Drupal 7.  There are many options for
+   * backporting this feature to Drupal 6, e.g. integrating with profile module,
+   * bio module, etc., but requirements are sufficiently murky that it makes
+   * sense to temporarily remove this stuff.
+   */
 
   $form['actions']['#type'] = 'actions';
   $form['actions']['submit'] = array(

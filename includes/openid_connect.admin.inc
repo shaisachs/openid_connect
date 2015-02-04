@@ -53,14 +53,6 @@ function openid_connect_admin_form($form, &$form_state) {
     );
   }
 
-  /**
-   * For Drupal 6 MVP, do without the user field mapping stuff - this requires
-   * entities which were introduced in Drupal 7.  There are many options for
-   * backporting this feature to Drupal 6, e.g. integrating with profile module,
-   * bio module, etc., but requirements are sufficiently murky that it makes
-   * sense to temporarily remove this stuff.
-   */
-
   $form['actions']['#type'] = 'actions';
   $form['actions']['submit'] = array(
     '#type' => 'submit',

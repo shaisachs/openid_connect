@@ -15,7 +15,7 @@ define('OPENID_CONNECT_REDIRECT_PATH_BASE', 'openid-connect');
  */
 function openid_connect_menu() {
   $items = array();
-  $items['admin/config/services/openid-connect'] = array(
+  $items['admin/settings/openid-connect'] = array(
     'title' => 'OpenID Connect',
     'description' => 'Config OpenID Connect, choose active OpenID Connect clients etc.',
     'page callback' => 'drupal_get_form',
@@ -34,14 +34,10 @@ function openid_connect_menu() {
 }
 
 /**
- * Implements hook_permission().
+ * Implements hook_perm().
  */
-function openid_connect_permission() {
-  return array(
-    'configure openid connect clients' => array(
-      'title' => t('Configure OpenID Connect clients'),
-    ),
-  );
+function openid_connect_perm() {
+  return array('configure openid connect clients');
 }
 
 /**
@@ -70,7 +66,8 @@ function openid_connect_ctools_plugin_type() {
  *   The name of the client to instantiate.
  */
 function openid_connect_get_client($client_name) {
-  $clients = &drupal_static(__FUNCTION__);
+  static $clients;
+
   if (!isset($clients[$client_name])) {
     $plugin = openid_connect_get_plugin($client_name);
     if ($plugin) {
@@ -122,6 +119,19 @@ function openid_connect_get_plugins($enabled_only = FALSE) {
 }
 
 /**
+ * Implements hook_block().
+ */
+function openid_connect_block($op = 'list', $delta = 0, $edit = array()) {
+  if ($op == 'list') {
+    return openid_connect_block_info();
+  }
+
+  if ($op == 'view') {
+    return openid_connect_block_view($delta);
+  }
+}
+
+/**
  * Implements hook_block_info().
  */
 function openid_connect_block_info() {
@@ -163,7 +173,7 @@ function openid_connect_login_form($form, &$form_state) {
 /**
  * Form submit handler: Log in with an OpenID Connect login provider.
  */
-function openid_connect_login_form_submit(&$form, &$form_state) {
+function openid_connect_login_form_submit($form, &$form_state) {
   // Save the current path in the session, so that we can redirect the user back
   // there after the authorization.
   $destination = drupal_get_destination();
@@ -233,7 +243,7 @@ function openid_connect_redirect_page($client_name) {
       // If we have an "access denied" error, that means the user hasn't granted
       // the authorization for the claims.
       drupal_set_message(t('Sign in with !login-provider has been canceled.', array('!login-provider' => $plugin['title'])), 'warning');
-      drupal_goto('<front>');
+      drupal_goto('');
     }
     else {
       // Any other error should be logged. E.g. invalid scope.
@@ -269,45 +279,13 @@ function openid_connect_redirect_page($client_name) {
 }
 
 /**
- * Saves user profile information into a user account.
+ * For Drupal 6 MVP, do without the user field mapping stuff - this requires
+ * entities which were introduced in Drupal 7.  There are many options for
+ * backporting this feature to Drupal 6, e.g. integrating with profile module,
+ * bio module, etc., but requirements are sufficiently murky that it makes
+ * sense to temporarily remove this stuff.
  */
-function openid_connect_save_userinfo($account, $user_profile, $client_name) {
-  $account_wrapper = entity_metadata_wrapper('user', $account);
-  $properties = $account_wrapper->getPropertyInfo();
-  $properties_skip = _openid_connect_user_properties_to_skip();
-  foreach ($properties as $property_name => $property) {
-    if (isset($properties_skip[$property_name])) {
-      continue;
-    }
-    $claim = variable_get('openid_connect_userinfo_mapping_property_' . $property_name, NULL);
-    if ($claim && isset($user_profile[$claim])) {
-      $account_wrapper->{$property_name} = $user_profile[$claim];
-    }
-  }
-  $account_wrapper->save();
 
-  // Fetch and save user picture from the login provider.
-  if (variable_get('user_pictures') && variable_get('openid_connect_user_pictures', TRUE) && !empty($user_profile['picture'])) {
-    $picture_directory = file_default_scheme() . '://' . variable_get('user_picture_path', 'pictures');
-    if (file_prepare_directory($picture_directory, FILE_CREATE_DIRECTORY)) {
-      $picture_request_response = drupal_http_request($user_profile['picture']);
-      if ($picture_request_response->code == 200) {
-        $picture_path = file_stream_wrapper_uri_normalize($picture_directory . '/picture-' . $account->uid . '-' . REQUEST_TIME . '.jpg');
-        $picture_file = file_save_data($picture_request_response->data, $picture_path, FILE_EXISTS_REPLACE);
-        // Check to make sure the picture isn't too large for the site settings.
-        file_validate_image_resolution($picture_file, variable_get('user_picture_dimensions', '1024x1024'));
-        // Update the user record.
-        $picture_file->uid = $account->uid;
-        $picture_file = file_save($picture_file);
-        file_usage_add($picture_file, 'user', 'user', $account->uid);
-        db_update('users')
-          ->fields(array('picture' => $picture_file->fid))
-          ->condition('uid', $account->uid)
-          ->execute();
-      }
-    }
-  }
-}
 
 /**
  * Logs in a user based on the sub-id returned by the login provider.
@@ -336,6 +314,19 @@ function openid_connect_create_user($sub, $email, $client_name) {
 }
 
 /**
+ * Implements hook_user().
+ */
+function openid_connect_user($op, &$edit, &$account, $category = NULL) {
+  if ($op == 'insert') {
+    openid_connect_user_insert($edit, $account, $category);
+  }
+
+  if ($op == 'delete') {
+    openid_connect_user_delete($account);
+  }
+}
+
+/**
  * Implements hook_user_insert().
  */
 function openid_connect_user_insert(&$edit, &$account, $category) {
@@ -355,13 +346,6 @@ function openid_connect_authmap_delete($uid) {
  * Implements hook_user_delete().
  */
 function openid_connect_user_delete($account) {
-  openid_connect_authmap_delete($account->uid);
-}
-
-/**
- * Implements hook_user_cancel().
- */
-function openid_connect_user_cancel($edit, $account, $method) {
   openid_connect_authmap_delete($account->uid);
 }
 
@@ -396,14 +380,16 @@ function openid_connect_get_user_authname($uid) {
     $modules[] = 'openid_connect_' . $plugin['name'];
   }
   if (!empty($modules)) {
-    $result = db_select('authmap', 'a')
-      ->fields('a', array('authname'))
-      ->condition('uid', $uid)
-      ->condition('module', $modules, 'IN')
-      ->execute()
-      ->fetchCol(0);
-
-    return $result;
+    $placeholders = db_placeholders($arguments, 'string');
+    $args = $modules;
+    array_unshift($args, $uid);
+    
+    $resource = db_query(
+        "SELECT authname "
+        . "FROM {authmap} "
+        . "WHERE uid = %d AND module IN ($placeholders)",
+        $args);
+    return db_result($resource);
   }
   return FALSE;
 }
@@ -412,18 +398,20 @@ function openid_connect_get_user_authname($uid) {
  * Loads a user based on a sub-id and a login provider.
  */
 function openid_connect_user_load_by_sub($sub, $client_name) {
-  $result = db_select('authmap', 'a')
-    ->fields('a', array('uid', 'module'))
-    ->condition('authname', $sub)
-    ->condition('module', 'openid_connect_' . $client_name)
-    ->execute()
-    ->fetchAssoc();
-  if ($result) {
-    $account = user_load($result['uid']);
+  $resource = db_query(
+      "SELECT uid, module "
+      . "FROM {authmap} "
+      . "WHERE authname = '%s' AND module = '%s'",
+      $sub, 'openid_connect_' . $client_name);
+
+  if ($resource) {
+    $authmap = db_fetch_array($resource);
+    $account = user_load($authmap['uid']);
     if (is_object($account)) {
       return $account;
     }
   }
+
   return FALSE;
 }
 
@@ -555,7 +543,7 @@ function openid_connect_log_request_error($method, $client_name, $response) {
   // Some error responses don't have a data key set.
   $details = '';
   if (!empty($response->data)) {
-    $details = print_r(drupal_json_decode($response->data), TRUE);
+    $details = print_r(json_decode($response->data, TRUE), TRUE);
   }
   $variables = array(
     '@error' => $response->error,

@@ -5,6 +5,8 @@
  * Base class for OpenID Connect clients.
  */
 
+module_load_include('php', 'openid_connect', 'includes/OpenIDConnectClientInterface.class');
+
 abstract class OpenIDConnectClientBase implements OpenIDConnectClientInterface {
 
   /**

@@ -5,6 +5,8 @@
  * OpenID Connect client for Google.
  */
 
+module_load_include('php', 'openid_connect', 'includes/OpenIDConnectClientBase.class');
+
 /**
  * Implements OpenID Connect Client plugin for Google.
  */

@@ -8,6 +8,8 @@
  * sites powered by oauth2-server-php.
  */
 
+module_load_include('php', 'openid_connect', 'includes/OpenIDConnectClientBase.class');
+
 class OpenIDConnectClientGeneric extends OpenIDConnectClientBase {
 
   /**

@@ -39,22 +39,7 @@ function openid_connect_admin_form($form, &$form_state) {
     $form['clients'][$client_plugin['name']] += $client->settingsForm();
   }
 
-  $form['userinfo_mapping'] = array(
-    '#title' => t('User info mapping'),
-    '#type' => 'fieldset',
-  );
-
-  if (variable_get('user_pictures', FALSE)) {
-    $form['userinfo_mapping']['openid_connect_user_pictures'] = array(
-      '#title' => t('Fetch user profile picture from login provider'),
-      '#description' => t('Whether the user profile picture from the login provider should be fetched and saved locally.'),
-      '#type' => 'checkbox',
-      '#default_value' => variable_get('openid_connect_user_pictures', TRUE),
-    );
-  }
-
-  $form['actions']['#type'] = 'actions';
-  $form['actions']['submit'] = array(
+  $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save configuration'),
   );

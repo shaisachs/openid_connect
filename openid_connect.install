@@ -6,7 +6,7 @@
  */
 
 /**
- * Implements hook_uninstall().
+ * Implementation of hook_uninstall().
  */
 function openid_connect_uninstall() {
   db_delete('variable')->condition('name', 'openid_connect%', 'LIKE')->execute();
@@ -28,3 +28,4 @@ function openid_connect_update_7100() {
     variable_set('openid_connect_client_' . $client['name'], $new_configuration);
   }
 }
+

@@ -342,7 +342,7 @@ function openid_connect_user_insert(&$edit, &$account, $category) {
  * Deletes a user's authmap entries.
  */
 function openid_connect_authmap_delete($uid) {
-  db_query("DELETE FROM {authmap} WHERE uid = :uid AND module LIKE 'openid_connect_%'", array(':uid' => $uid));
+  db_query("DELETE FROM {authmap} WHERE uid = %d AND module LIKE 'openid_connect_%'", $uid);
 }
 
 /**
@@ -383,7 +383,7 @@ function openid_connect_get_user_authname($uid) {
     $modules[] = 'openid_connect_' . $plugin['name'];
   }
   if (!empty($modules)) {
-    $placeholders = db_placeholders($arguments, 'string');
+    $placeholders = db_placeholders($modules, 'varchar');
     $args = $modules;
     array_unshift($args, $uid);
     

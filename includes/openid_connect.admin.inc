@@ -8,7 +8,9 @@
 /**
  * Form builder: Main administrative form.
  */
-function openid_connect_admin_form($form, &$form_state) {
+function openid_connect_admin_form() {
+  $form = array();
+
   $client_plugins = openid_connect_get_plugins();
   $options = array();
   foreach ($client_plugins as $client_plugin) {
@@ -81,21 +83,5 @@ function openid_connect_admin_form_submit($form, &$form_state) {
     // Save the settings.
     variable_set('openid_connect_client_' . $client_name, $fake_form_state['values']);
   }
-
-  $claims = array();
-  foreach ($form_state['values']['userinfo_mapping'] as $variable => $claim) {
-    if (!empty($claim)) {
-      $claims[] = $claim;
-      variable_set($variable, $claim);
-    }
-    else {
-      variable_del($variable);
-    }
-  }
-  if (!empty($claims)) {
-    variable_set('openid_connect_userinfo_mapping_claims', $claims);
-  }
-  else {
-    variable_del('openid_connect_userinfo_mapping_claims');
-  }
 }
+

@@ -277,7 +277,6 @@ function openid_connect_redirect_page($client_name) {
         // also register it in the `authmap` table.
         $account = openid_connect_user_load_by_sub($user_data['sub'], $client_name);
         openid_connect_login_user($user_data['sub'], $account, $userinfo['email'], $client_name);
-        openid_connect_save_userinfo($account, $userinfo, $client_name);
       }
 
       module_invoke_all('openid_connect_post_authorize', $tokens, $destination);
@@ -305,8 +304,8 @@ function openid_connect_login_user($sub, &$account, $email, $client_name) {
   if (!$account) {
     $account = openid_connect_create_user($sub, $email, $client_name);
   }
-  $form_state['uid'] = $account->uid;
-  user_login_submit(array(), $form_state);
+
+  user_external_login($account);
 }
 
 /**

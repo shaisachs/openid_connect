@@ -91,15 +91,17 @@ abstract class OpenIDConnectClientBase implements OpenIDConnectClientInterface {
    */
   public function authorize($scope = 'openid email') {
     $redirect_uri = OPENID_CONNECT_REDIRECT_PATH_BASE . '/' . $this->name;
-    $url_options = array(
-      'query' => array(
-        'client_id' => $this->getSetting('client_id'),
-        'response_type' => 'code',
-        'scope' => $scope,
-        'redirect_uri' => url($redirect_uri, array('absolute' => TRUE)),
-        'state' => openid_connect_create_state_token(),
-      ),
+
+    $query = array(
+      'client_id' => $this->getSetting('client_id'),
+      'response_type' => 'code',
+      'scope' => $scope,
+      'redirect_uri' => url($redirect_uri, array('absolute' => TRUE)),
+      'state' => openid_connect_create_state_token(),
     );
+    drupal_alter('openid_connect_authorize_query', $query);
+
+    $url_options = array('query' => $query);
     $endpoints = $this->getEndpoints();
     // Clear $_GET['destination'] because we need to override it.
     unset($_GET['destination']);
@@ -129,6 +131,8 @@ abstract class OpenIDConnectClientBase implements OpenIDConnectClientInterface {
     $response = drupal_http_request($endpoints['token'], $request_options);
     if (!isset($response->error) && $response->code == 200) {
       $response_data = drupal_json_decode($response->data);
+      module_invoke_all('openid_connect_tokens_retrieved', $response_data);
+
       return array(
         'id_token' => $response_data['id_token'],
         'access_token' => $response_data['access_token'],
@@ -163,7 +167,9 @@ abstract class OpenIDConnectClientBase implements OpenIDConnectClientInterface {
     $endpoints = $this->getEndpoints();
     $response = drupal_http_request($endpoints['userinfo'], $request_options);
     if (!isset($response->error) && $response->code == 200) {
-      return drupal_json_decode($response->data);
+      $answer = drupal_json_decode($response->data);
+      module_invoke_all('openid_connect_userinfo_retrieved', $answer);
+      return $answer;
     }
     else {
       openid_connect_log_request_error(__FUNCTION__, $this->name, $response);

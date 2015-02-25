@@ -105,6 +105,8 @@ abstract class OpenIDConnectClientBase implements OpenIDConnectClientInterface {
     $endpoints = $this->getEndpoints();
     // Clear $_GET['destination'] because we need to override it.
     unset($_GET['destination']);
+
+    drupal_alter('openid_connect_authorize_query', $query);
     drupal_goto($endpoints['authorization'], $query);
   }
 
@@ -130,6 +132,8 @@ abstract class OpenIDConnectClientBase implements OpenIDConnectClientInterface {
 
     if (!isset($response->error) && $response->code == 200) {
       $response_data = json_decode($response->data, TRUE);
+      module_invoke_all('openid_connect_tokens_retrieved', $response_data);
+
       return array(
         'id_token' => $response_data['id_token'],
         'access_token' => $response_data['access_token'],
@@ -162,7 +166,9 @@ abstract class OpenIDConnectClientBase implements OpenIDConnectClientInterface {
     $endpoints = $this->getEndpoints();
     $response = drupal_http_request($endpoints['userinfo'], $headers);
     if (!isset($response->error) && $response->code == 200) {
-      return json_decode($response->data, TRUE);
+      $answer = json_decode($response->data, TRUE);
+      module_invoke_all('openid_connect_userinfo_retrieved', $answer);
+      return $answer;
     }
     else {
       openid_connect_log_request_error(__FUNCTION__, $this->name, $response);

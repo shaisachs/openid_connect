@@ -241,6 +241,7 @@ function openid_connect_redirect_page($client_name) {
   // that we can redirect the user back from where they initiated the login.
   $destination = ltrim($_SESSION['openid_connect_destination'], '/');
   unset($_SESSION['openid_connect_destination']);
+  list($path, $query) = _openid_connect_decode_destination($destination);
 
   $client = openid_connect_get_client($client_name);
   if (!isset($_GET['error']) && (!$client || !isset($_GET['code']))) {
@@ -280,12 +281,32 @@ function openid_connect_redirect_page($client_name) {
       }
 
       module_invoke_all('openid_connect_post_authorize', $tokens, $destination);
-      drupal_goto($destination);
+
+      drupal_goto($path, $query);
     }
   }
 
   drupal_set_message(t('Sign in with !login-provider could not be completed due to an error.', array('!login-provider' => $client)), 'error');
-  drupal_goto($destination);
+  drupal_goto($path, $query);
+}
+
+/**
+ * Decode the encoded destination parameter
+ * @param string A urlencoded destination parameter, like "node%2F1234%3Ffoo%3Dbar%26baz%5B1%5D%3Dbaz2"
+ * @return array The decoded path and query, if applicable; with the input above, yields array('node/1234', 'foo=bar&baz[1]=baz2')
+ * May be used as such:
+ * list($path, $query) = _openid_connect_decode_destination($destination);
+ * drupal_goto($path, $query);
+ */
+function _openid_connect_decode_destination($destination) {
+  $destination_decoded = urldecode($destination);
+  $destination_parts = explode('?', $destination_decoded);
+  $query = '';
+  $path = $destination_parts[0];
+  if ($destination_parts[1]) {
+    $query = $destination_parts[1];
+  }
+  return array($path, $query);
 }
 
 /**
